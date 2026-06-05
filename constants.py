@@ -3,6 +3,6 @@
 
 db_name = 'DataBase'
 db_user = 'postgres'
-db_password = 'Daniiel6541'
+db_password = '*'
 db_host = 'localhost'
 db_port = '5432'
