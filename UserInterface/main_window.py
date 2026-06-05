@@ -8,11 +8,12 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QLineEdit, QComboBox, QMessageBox,
+    QListWidgetItem, QLineEdit, QComboBox, QMessageBox, QFrame,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QPixmap
 
-from UserInterface.product_card import ProductCard
+from UserInterface.product_card import ProductCard, logo_path
 from UserInterface.product_form import ProductForm
 from UserInterface.orders_window import OrdersWindow
 
@@ -37,17 +38,29 @@ class MainWindow(QWidget):
 
     # ------------------------------------------------------------------ #
     def _build_ui(self):
+        self.setObjectName("screen")
         root = QVBoxLayout(self)
 
-        # верхняя панель: заголовок + ФИО (справа) + выход
-        top = QHBoxLayout()
+        # верхняя панель (доп. фон): логотип + заголовок + ФИО + выход
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        top = QHBoxLayout(topbar)
+        logo = logo_path()
+        if logo:
+            pix = QPixmap(logo)
+            if not pix.isNull():
+                logo_lbl = QLabel()
+                # масштаб с сохранением пропорций, цвет не меняется
+                logo_lbl.setPixmap(pix.scaledToHeight(
+                    40, Qt.TransformationMode.SmoothTransformation))
+                top.addWidget(logo_lbl)
         top.addWidget(QLabel("<b>Список товаров</b>"))
         top.addStretch()
         top.addWidget(QLabel(self.user["fio"]))
         logout = QPushButton("Выход")
         logout.clicked.connect(self._logout)
         top.addWidget(logout)
-        root.addLayout(top)
+        root.addWidget(topbar)
 
         # панель действий ролей
         actions = QHBoxLayout()
@@ -57,6 +70,7 @@ class MainWindow(QWidget):
             actions.addWidget(orders_btn)
         if self.is_admin:
             add_btn = QPushButton("Добавить товар")
+            add_btn.setObjectName("accent")
             add_btn.clicked.connect(self._add_product)
             actions.addWidget(add_btn)
         actions.addStretch()
@@ -136,10 +150,20 @@ class MainWindow(QWidget):
 
         self.list_widget.clear()
         for product in products:
-            card = ProductCard(product, is_admin=self.is_admin)
+            try:
+                card = ProductCard(product, is_admin=self.is_admin)
+            except Exception as e:
+                print("Ошибка карточки товара:", e, file=__import__("sys").stderr)
+                continue
             if self.is_admin:
-                card.clicked.connect(self._edit_product)
-                card.delete_clicked.connect(self._delete_product)
+                # QueuedConnection: открытие формы и reload() произойдут ПОСЛЕ
+                # того, как событие клика по карточке полностью завершится,
+                # иначе карточка удаляется в reload() прямо во время своего
+                # же mousePressEvent -> access violation (0xC0000005).
+                card.clicked.connect(self._edit_product,
+                                     Qt.ConnectionType.QueuedConnection)
+                card.delete_clicked.connect(self._delete_product,
+                                            Qt.ConnectionType.QueuedConnection)
             item = QListWidgetItem(self.list_widget)
             item.setSizeHint(card.sizeHint())
             self.list_widget.addItem(item)
@@ -163,14 +187,22 @@ class MainWindow(QWidget):
         self._open_product_form(product_id)
 
     def _open_product_form(self, product_id):
-        form = ProductForm(self.db, product_id=product_id, parent=self)
-        self._edit_window = form
-        result = form.exec()
-        self._edit_window = None
-        if result:
-            if self.can_manage:
-                self._refresh_suppliers()
-            self.reload()
+        try:
+            form = ProductForm(self.db, product_id=product_id, parent=self)
+            self._edit_window = form
+            result = form.exec()
+            self._edit_window = None
+            if result:
+                if self.can_manage:
+                    self._refresh_suppliers()
+                self.reload()
+        except Exception as e:
+            self._edit_window = None
+            try:
+                self.db.conn.rollback()
+            except Exception:
+                pass
+            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть форму товара:\n{e}")
 
     def _delete_product(self, product_id):
         product = self.db.get_product(product_id)

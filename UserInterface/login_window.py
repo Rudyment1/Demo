@@ -9,9 +9,11 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
 
 from DataBase.database import role_kind
 from UserInterface.main_window import MainWindow
+from UserInterface.product_card import logo_path
 
 
 class LoginWindow(QWidget):
@@ -25,7 +27,19 @@ class LoginWindow(QWidget):
         self._build_ui()
 
     def _build_ui(self):
+        self.setObjectName("screen")
         root = QVBoxLayout(self)
+
+        # логотип (масштабируется с сохранением пропорций, цвет не меняется)
+        logo = logo_path()
+        if logo:
+            pix = QPixmap(logo)
+            if not pix.isNull():
+                lbl = QLabel()
+                lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                lbl.setPixmap(pix.scaledToHeight(64, Qt.TransformationMode.SmoothTransformation))
+                root.addWidget(lbl)
+
         title = QLabel("<h2>Авторизация</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(title)
@@ -39,6 +53,7 @@ class LoginWindow(QWidget):
         root.addLayout(form)
 
         login_btn = QPushButton("Войти")
+        login_btn.setObjectName("accent")
         login_btn.clicked.connect(self._login)
         self.password.returnPressed.connect(self._login)
         guest_btn = QPushButton("Войти как гость")

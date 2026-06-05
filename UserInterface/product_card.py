@@ -66,6 +66,21 @@ def placeholder():
     return resolve_image(PLACEHOLDER_NAME)
 
 
+def icon_path():
+    """Путь к иконке приложения (предпочтительно .ico, затем .png)."""
+    return resolve_image("icon.ico") or resolve_image("icon.png")
+
+
+def logo_path():
+    """Путь к логотипу. Ищет logo.* / логотип.*, иначе использует icon.png."""
+    for name in ("logo.png", "logo.jpg", "logo.jpeg", "logo.bmp", "logo.ico",
+                 "логотип.png", "логотип.jpg", "Логотип.png"):
+        p = resolve_image(name)
+        if p:
+            return p
+    return resolve_image("icon.png") or resolve_image("icon.ico")
+
+
 def sources_dir():
     """Папка Sources рядом с модулями (создаётся при необходимости)."""
     os.makedirs(SOURCES_DIR, exist_ok=True)

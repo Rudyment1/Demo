@@ -4,7 +4,7 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QMessageBox, QAbstractItemView, QHeaderView,
+    QTableWidgetItem, QMessageBox, QAbstractItemView, QHeaderView, QFrame,
 )
 from PySide6.QtCore import Qt
 
@@ -25,16 +25,19 @@ class OrdersWindow(QWidget):
         self.reload()
 
     def _build_ui(self):
+        self.setObjectName("screen")
         root = QVBoxLayout(self)
 
-        top = QHBoxLayout()
+        topbar = QFrame()
+        topbar.setObjectName("topbar")
+        top = QHBoxLayout(topbar)
         back = QPushButton("← Назад")
         back.clicked.connect(self._go_back)
         top.addWidget(back)
         top.addWidget(QLabel("<b>Список заказов</b>"))
         top.addStretch()
         top.addWidget(QLabel(self.user["fio"]))
-        root.addLayout(top)
+        root.addWidget(topbar)
 
         self.table = QTableWidget()
         self.table.setColumnCount(8)
@@ -43,14 +46,20 @@ class OrdersWindow(QWidget):
              "ФИО клиента", "Код", "Дата заказа", "Дата выдачи"])
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.ResizeToContents)
+        # убираем лишнюю нумерацию строк слева (есть осмысленный столбец «№»)
+        self.table.verticalHeader().setVisible(False)
+        # столбцы: узкие — под содержимое, широкие текстовые — тянутся под ширину окна
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        for col in (1, 3, 4):   # Артикул заказа, Адрес пункта выдачи, ФИО клиента
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
         self.table.cellDoubleClicked.connect(self._edit_selected)
         root.addWidget(self.table)
 
         if self.is_admin:
             bar = QHBoxLayout()
             add = QPushButton("Добавить заказ")
+            add.setObjectName("accent")
             add.clicked.connect(self._add)
             edit = QPushButton("Редактировать")
             edit.clicked.connect(self._edit_selected)

@@ -27,6 +27,7 @@ class OrderForm(QDialog):
             self._load()
 
     def _build_ui(self):
+        self.setObjectName("screen")
         root = QVBoxLayout(self)
         form = QFormLayout()
 
@@ -66,6 +67,7 @@ class OrderForm(QDialog):
 
         buttons = QHBoxLayout()
         save = QPushButton("Сохранить")
+        save.setObjectName("accent")
         save.clicked.connect(self._save)
         cancel = QPushButton("Отмена")
         cancel.clicked.connect(self.reject)
